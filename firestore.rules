@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isLegacyListing() {
+      return !('userId' in resource.data) || resource.data.userId == null;
+    }
+
+    function legacyEmailMatches() {
+      return !('sellerEmail' in resource.data)
+        || resource.data.sellerEmail == null
+        || resource.data.sellerEmail == ''
+        || request.auth.token.email == resource.data.sellerEmail;
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+
+      match /favorites/{favoriteId} {
+        allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /userBlocks/{blockId} {
+      function isBlockParticipant() {
+        return request.auth != null && (
+          blockId.matches('^' + request.auth.uid + '_.*')
+          || blockId.matches('.*_' + request.auth.uid + '$')
+        );
+      }
+
+      allow get: if request.auth != null && (
+        resource == null && isBlockParticipant()
+        || resource != null && (
+          request.auth.uid == resource.data.blockerId
+          || request.auth.uid == resource.data.blockedId
+        )
+      );
+      allow list: if request.auth != null && (
+        request.auth.uid == resource.data.blockerId
+        || request.auth.uid == resource.data.blockedId
+      );
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.blockerId
+        && request.resource.data.blockedId != request.auth.uid
+        && blockId == request.resource.data.blockerId + '_' + request.resource.data.blockedId;
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.blockerId;
+    }
+
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.reporterId
+        && request.resource.data.reportedUserId != request.auth.uid
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0;
+      allow read, update, delete: if false;
+    }
+
+    match /guitars/{guitarId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (
+        (resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid)
+        || (isLegacyListing()
+          && request.resource.data.userId == request.auth.uid
+          && legacyEmailMatches())
+      );
+      allow delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || (isLegacyListing() && legacyEmailMatches())
+      );
+    }
+
+    match /conversations/{conversationId} {
+      allow read, update: if request.auth != null && (
+        resource == null
+        || request.auth.uid in resource.data.participants
+      );
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.buyerId
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.sellerId in request.resource.data.participants
+        && request.resource.data.buyerId != request.resource.data.sellerId;
+
+      match /messages/{messageId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow create: if request.auth != null
+          && request.auth.uid == request.resource.data.senderId
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants
+          && request.resource.data.type in ['text', 'buy_intent', 'system'];
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if request.auth != null
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.actorId
+        && request.resource.data.userId != request.auth.uid;
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.reviewerId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && ratingId == request.resource.data.listingId + '_' + request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /forumPosts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
+          && request.resource.data.replyCount == resource.data.replyCount + 1
+        )
+      );
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+
+      match /replies/{replyId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+        allow delete: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}
