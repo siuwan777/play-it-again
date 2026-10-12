@@ -1,12 +1,36 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
+import * as Notifications from "expo-notifications";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebaseConfig";
 import { setAuthEmail, clearAuthEmail } from "../utils/authSession";
+import {
+  registerForPushNotificationsAsync,
+  saveExpoPushToken,
+} from "../utils/pushNotifications";
 import { ensureUserProfile, setCachedDisplayName } from "../utils/userProfile";
 import { FavoritesProvider } from "./FavoritesContext";
 
 export default function RootLayout() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      const conversationId =
+        typeof data?.conversationId === 'string' ? data.conversationId : null;
+      if (conversationId) {
+        router.push({ pathname: '/chat', params: { conversationId } });
+        return;
+      }
+      if (data?.type === 'buy_intent' || data?.type === 'message') {
+        router.push('/(tabs)/messages');
+      }
+    });
+
+    return () => responseSub.remove();
+  }, [router]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user?.email) {
@@ -15,6 +39,14 @@ export default function RootLayout() {
           await ensureUserProfile(user.uid, user.email);
         } catch (error) {
           console.error('Failed to ensure user profile:', error);
+        }
+        try {
+          const pushToken = await registerForPushNotificationsAsync();
+          if (pushToken) {
+            await saveExpoPushToken(user.uid, pushToken);
+          }
+        } catch (error) {
+          console.warn('Failed to register push notifications:', error);
         }
       } else if (!user) {
         clearAuthEmail();

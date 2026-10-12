@@ -1,22 +1,45 @@
-import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { chipStyles } from '../constants/chipStyles';
 import {
   fieldSupportsOther,
   getCustomFieldKey,
-  getModelOptions,
   getOtherOptionLabel,
   getSpecFields,
   isTextInputField,
+  resolveSpecValue,
+  YEAR_UNCERTAIN,
   type ListingSpecs,
   type SpecField,
 } from '../utils/listingSpecs';
+import { LISTING_CATEGORIES } from '../utils/listingCategories';
+import { colors } from '../constants/theme';
+import { CollapsibleFieldSection } from './CollapsibleFieldSection';
+import { ListingCategoryPicker } from './ListingCategoryPicker';
 import { OptionSelectField } from './OptionSelectField';
 
 type ListingSpecFormProps = {
   categoryId: string;
   specs: ListingSpecs;
   onChange: (nextSpecs: ListingSpecs) => void;
+  onCategoryChange?: (categoryId: string) => void;
+  hideCategoryPicker?: boolean;
 };
+
+function getFieldSummary(field: SpecField, specs: ListingSpecs): string {
+  if (isTextInputField(field)) {
+    return specs[field.key]?.trim() || '請填寫';
+  }
+
+  const raw = specs[field.key]?.trim();
+  if (raw === getOtherOptionLabel()) {
+    const custom = specs[getCustomFieldKey(field.key)]?.trim();
+    return custom || '請填寫';
+  }
+
+  const resolved = resolveSpecValue(specs, field.key);
+  return resolved || '請選擇';
+}
 
 function renderOtherInput(
   field: SpecField,
@@ -32,7 +55,7 @@ function renderOtherInput(
 
   return (
     <View style={styles.textFieldWrap}>
-      <Text style={styles.label}>
+      <Text style={styles.inlineLabel}>
         {field.label}（其他）
         {field.required ? <Text style={styles.required}> *</Text> : null}
       </Text>
@@ -47,9 +70,30 @@ function renderOtherInput(
   );
 }
 
-export function ListingSpecForm({ categoryId, specs, onChange }: ListingSpecFormProps) {
+export function ListingSpecForm({
+  categoryId,
+  specs,
+  onChange,
+  onCategoryChange,
+  hideCategoryPicker = false,
+}: ListingSpecFormProps) {
   const fields = getSpecFields(categoryId);
   const otherLabel = getOtherOptionLabel();
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const categoryLabel =
+    LISTING_CATEGORIES.find((item) => item.id === categoryId)?.name || '請選擇';
+
+  useEffect(() => {
+    setExpandedKey(null);
+  }, [categoryId]);
+
+  const toggleField = (key: string) => {
+    setExpandedKey((prev) => (prev === key ? null : key));
+  };
+
+  const collapseAfterSelect = () => {
+    setExpandedKey(null);
+  };
 
   const updateField = (key: string, value: string) => {
     const nextSpecs = { ...specs, [key]: value };
@@ -58,12 +102,12 @@ export function ListingSpecForm({ categoryId, specs, onChange }: ListingSpecForm
       nextSpecs[getCustomFieldKey(key)] = '';
     }
 
-    if (key === 'brand') {
-      nextSpecs.model = '';
-      nextSpecs.customModel = '';
-    }
-
     onChange(nextSpecs);
+    if (value !== otherLabel) {
+      collapseAfterSelect();
+    } else {
+      setExpandedKey(key);
+    }
   };
 
   const updateCustomField = (fieldKey: string, value: string) => {
@@ -74,59 +118,115 @@ export function ListingSpecForm({ categoryId, specs, onChange }: ListingSpecForm
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.wrapper}>
       <Text style={styles.sectionTitle}>商品規格</Text>
       <Text style={styles.sectionHint}>
-        {categoryId === 'other' ? '請填寫商品規格' : '選「其他」時可填寫自訂內容'}
+        {categoryId === 'other' ? '請填寫商品規格' : '點開各項選擇；選「其他」時可填寫自訂內容'}
       </Text>
 
+      {hideCategoryPicker ? null : (
+        <CollapsibleFieldSection
+          title="商品分類"
+          summary={categoryLabel}
+          required
+          expanded={expandedKey === 'category'}
+          onToggle={() => toggleField('category')}
+        >
+          <ListingCategoryPicker
+            value={categoryId}
+            onChange={(nextCategory) => {
+              onCategoryChange?.(nextCategory);
+              setExpandedKey(null);
+            }}
+          />
+        </CollapsibleFieldSection>
+      )}
+
       {fields.map((field) => {
+        const summary = getFieldSummary(field, specs);
+        const expanded = expandedKey === field.key;
+
         if (isTextInputField(field)) {
+          if (field.key === 'year') {
+            const yearUncertain = specs.year === YEAR_UNCERTAIN;
+            return (
+              <CollapsibleFieldSection
+                key={field.key}
+                title={field.label}
+                summary={summary}
+                required={field.required}
+                expanded={expanded}
+                onToggle={() => toggleField(field.key)}
+              >
+                <TextInput
+                  style={[styles.input, yearUncertain && styles.inputMuted]}
+                  placeholder={field.placeholder}
+                  placeholderTextColor="#8A7B72"
+                  editable={!yearUncertain}
+                  value={yearUncertain ? '' : specs.year || ''}
+                  onChangeText={(value) => onChange({ ...specs, year: value })}
+                  keyboardType="default"
+                />
+                <TouchableOpacity
+                  style={[chipStyles.chip, styles.yearChip, yearUncertain && chipStyles.chipActive]}
+                  onPress={() => {
+                    if (yearUncertain) {
+                      onChange({ ...specs, year: '' });
+                    } else {
+                      onChange({ ...specs, year: YEAR_UNCERTAIN });
+                      setExpandedKey(null);
+                    }
+                  }}
+                >
+                  <Text style={[chipStyles.chipText, yearUncertain && chipStyles.chipTextActive]}>
+                    {YEAR_UNCERTAIN}
+                  </Text>
+                </TouchableOpacity>
+              </CollapsibleFieldSection>
+            );
+          }
+
           return (
-            <View key={field.key} style={styles.textFieldWrap}>
-              <Text style={styles.label}>
-                {field.label}
-                {field.required ? <Text style={styles.required}> *</Text> : null}
-              </Text>
+            <CollapsibleFieldSection
+              key={field.key}
+              title={field.label}
+              summary={summary}
+              required={field.required}
+              expanded={expanded}
+              onToggle={() => toggleField(field.key)}
+            >
               <TextInput
                 style={styles.input}
                 placeholder={field.placeholder}
                 placeholderTextColor="#8A7B72"
                 value={specs[field.key] || ''}
-                onChangeText={(value) => updateField(field.key, value)}
+                onChangeText={(value) => onChange({ ...specs, [field.key]: value })}
               />
-            </View>
-          );
-        }
-
-        if (field.key === 'model') {
-          return (
-            <View key={field.key}>
-              <OptionSelectField
-                label={field.label}
-                value={specs.model || ''}
-                options={getModelOptions(specs.brand)}
-                required={field.required}
-                onChange={(value) => updateField('model', value)}
-              />
-              {renderOtherInput(field, specs, updateCustomField)}
-            </View>
+            </CollapsibleFieldSection>
           );
         }
 
         if (!field.options?.length) return null;
 
         return (
-          <View key={field.key}>
+          <CollapsibleFieldSection
+            key={field.key}
+            title={field.label}
+            summary={summary}
+            required={field.required}
+            expanded={expanded}
+            onToggle={() => toggleField(field.key)}
+          >
             <OptionSelectField
               label={field.label}
               value={specs[field.key] || ''}
               options={field.options}
               required={field.required}
+              hideLabel
               onChange={(value) => updateField(field.key, value)}
             />
             {renderOtherInput(field, specs, updateCustomField)}
-          </View>
+          </CollapsibleFieldSection>
         );
       })}
     </View>
@@ -134,28 +234,26 @@ export function ListingSpecForm({ categoryId, specs, onChange }: ListingSpecForm
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E0D8C8',
-    padding: 16,
-    marginBottom: 15,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: '#4A3B32', marginBottom: 4 },
-  sectionHint: { fontSize: 12, color: '#8A7B72', marginBottom: 16, lineHeight: 18 },
-  textFieldWrap: { marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#4A3B32', marginBottom: 8 },
-  required: { color: '#C35A2C' },
+  wrapper: { marginBottom: 8 },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: colors.text, marginBottom: 4 },
+  sectionHint: { fontSize: 12, color: colors.textMuted, marginBottom: 12, lineHeight: 18 },
+  textFieldWrap: { marginTop: 12 },
+  inlineLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8 },
+  required: { color: colors.text },
   input: {
-    backgroundColor: '#F4EEDD',
+    backgroundColor: colors.paper,
     borderWidth: 1,
-    borderColor: '#E0D8C8',
+    borderColor: colors.border,
     paddingHorizontal: 15,
     paddingVertical: 12,
     borderRadius: 12,
     fontSize: 16,
-    marginBottom: 8,
-    color: '#4A3B32',
+    color: colors.text,
+    marginBottom: 10,
   },
+  inputMuted: {
+    backgroundColor: colors.mutedFill,
+    color: colors.textMuted,
+  },
+  yearChip: { alignSelf: 'flex-start' },
 });

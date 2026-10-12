@@ -20,11 +20,10 @@ import {
 } from '../utils/listingSpecs';
 import { uploadListingImages } from '../utils/uploadImages';
 import { getDisplayNameForUser } from '../utils/userProfile';
-import { ListingCategoryPicker } from '../components/ListingCategoryPicker';
+import { CollapsibleFieldSection } from '../components/CollapsibleFieldSection';
 import { ListingPhotoGuide } from '../components/ListingPhotoGuide';
 import { ListingSpecForm } from '../components/ListingSpecForm';
 import { OptionSelectField } from '../components/OptionSelectField';
-
 export default function EditListing() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,6 +39,14 @@ export default function EditListing() {
   const [videoLink, setVideoLink] = useState('');
   const [isLegacyListing, setIsLegacyListing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [expandedFormSection, setExpandedFormSection] = useState<string | null>(null);
+
+  const toggleFormSection = (sectionId: string) => {
+    setExpandedFormSection((prev) => (prev === sectionId ? null : sectionId));
+  };
+
+  const conditionLabel =
+    LISTING_CONDITIONS.find((item) => item.id === conditionId)?.label || '請選擇';
 
   useEffect(() => {
     if (!id) {
@@ -201,7 +208,7 @@ export default function EditListing() {
       await updateDoc(doc(db, 'guitars', id), updatePayload);
 
       Alert.alert(
-        '✅ 更新成功！',
+        '更新成功',
         claimingLegacy ? '商品已綁定到你的帳號。' : '你的商品資料已儲存。',
         [{ text: '返回個人頁', onPress: () => router.back() }]
       );
@@ -287,7 +294,7 @@ export default function EditListing() {
                 <View key={index} style={styles.imageWrapper}>
                   <Image source={{ uri }} style={styles.thumbnail} />
                   <TouchableOpacity style={styles.deleteButton} onPress={() => removeImage(index)}>
-                    <Text style={styles.deleteButtonText}>✕</Text>
+                    <Text style={styles.deleteButtonText}>X</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -302,32 +309,67 @@ export default function EditListing() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>商品分類 <Text style={styles.required}>*</Text></Text>
-            <ListingCategoryPicker value={category} onChange={handleCategoryChange} />
+            <ListingSpecForm
+              categoryId={category}
+              specs={specs}
+              onChange={setSpecs}
+              onCategoryChange={handleCategoryChange}
+            />
 
-            <ListingSpecForm categoryId={category} specs={specs} onChange={setSpecs} />
-
-            <OptionSelectField
-              label="新舊程度"
-              value={conditionId}
-              options={LISTING_CONDITIONS.map((item) => ({ value: item.id, label: item.label }))}
+            <CollapsibleFieldSection
+              title="新舊程度"
+              summary={conditionLabel}
               required
-              onChange={setConditionId}
-            />
+              expanded={expandedFormSection === 'condition'}
+              onToggle={() => toggleFormSection('condition')}
+            >
+              <OptionSelectField
+                label="新舊程度"
+                value={conditionId}
+                options={LISTING_CONDITIONS.map((item) => ({ value: item.id, label: item.label }))}
+                required
+                hideLabel
+                onChange={(value) => {
+                  setConditionId(value);
+                  setExpandedFormSection(null);
+                }}
+              />
+            </CollapsibleFieldSection>
 
-            <Text style={styles.label}>售價 (HK$) <Text style={styles.required}>*</Text></Text>
-            <TextInput style={styles.input} placeholderTextColor="#8A7B72" placeholder="0" keyboardType="numeric" value={price} onChangeText={setPrice} />
+            <CollapsibleFieldSection
+              title="售價 (HK$)"
+              summary={price.trim() ? `HK$ ${price.trim()}` : '請填寫'}
+              required
+              expanded={expandedFormSection === 'price'}
+              onToggle={() => toggleFormSection('price')}
+            >
+              <TextInput
+                style={styles.inputCompact}
+                placeholderTextColor="#8A7B72"
+                placeholder="0"
+                keyboardType="numeric"
+                value={price}
+                onChangeText={setPrice}
+              />
+            </CollapsibleFieldSection>
 
-            <Text style={styles.label}>補充描述 <Text style={styles.required}>*</Text></Text>
-            <Text style={styles.hintText}>描述瑕疵、改裝、交收方式等補充資訊</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholderTextColor="#8A7B72"
-              placeholder="例如：琴頸狀態良好，附 Fender Hardcase，觀塘自取..."
-              multiline
-              value={description}
-              onChangeText={setDescription}
-            />
+            <CollapsibleFieldSection
+              title="補充描述"
+              summary={description.trim() ? description.trim() : '請填寫'}
+              required
+              expanded={expandedFormSection === 'description'}
+              onToggle={() => toggleFormSection('description')}
+            >
+              <Text style={styles.hintTextInline}>描述瑕疵、改裝、交收方式等補充資訊</Text>
+              <TextInput
+                style={[styles.inputCompact, styles.textArea]}
+                placeholderTextColor="#8A7B72"
+                placeholder="例如：琴頸狀態良好，附 Fender Hardcase，觀塘自取..."
+                multiline
+                value={description}
+                onChangeText={setDescription}
+              />
+            </CollapsibleFieldSection>
           </View>
 
           <View style={styles.section}>
@@ -335,7 +377,7 @@ export default function EditListing() {
               <Text style={styles.label}>實測 / 演出片段 <Text style={styles.optional}>(選填)</Text></Text>
             </View>
             <Text style={styles.encourageText}>
-              💡 強烈建議！附上 YouTube 或 IG 影片連結，讓買家聽聽它的真實音色！
+              強烈建議：附上 YouTube 或 IG 影片連結，讓買家聽聽它的真實音色！
             </Text>
             <TextInput
               style={styles.input}
@@ -357,7 +399,7 @@ export default function EditListing() {
             onPress={handleDelete}
             disabled={deleting || saving}
           >
-            <Text style={styles.deleteListingBtnText}>{deleting ? '刪除中...' : '🗑️ 刪除商品'}</Text>
+            <Text style={styles.deleteListingBtnText}>{deleting ? '刪除中...' : '刪除商品'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -385,6 +427,17 @@ const styles = StyleSheet.create({
   required: { color: '#C35A2C' },
   optional: { color: '#8A7B72', fontWeight: 'normal', fontSize: 12 },
   hintText: { fontSize: 12, color: '#8A7B72', marginBottom: 10, marginTop: -4 },
+  hintTextInline: { fontSize: 12, color: '#8A7B72', marginBottom: 10, lineHeight: 18 },
+  inputCompact: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 12,
+    fontSize: 16,
+    color: '#2C2C2C',
+  },
   encourageText: { fontSize: 13, color: '#4E878C', marginBottom: 10, marginTop: -4, lineHeight: 18, fontWeight: 'bold' },
 
   input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0D8C8', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 12, fontSize: 16, marginBottom: 15, color: '#4A3B32' },

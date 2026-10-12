@@ -103,7 +103,7 @@ export default function PostDetails() {
     }
 
     if (isForumAdContent('', replyText)) {
-      Alert.alert('⚠️ 系統攔截', '討論區嚴禁發佈買賣廣告！', [{ text: '我知道了', style: 'cancel' }]);
+      Alert.alert('系統攔截', '討論區嚴禁發佈買賣廣告！', [{ text: '我知道了', style: 'cancel' }]);
       return;
     }
 

@@ -128,7 +128,6 @@ export default function ReportUser() {
     >
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.headerBox}>
-          <Text style={styles.headerIcon}>🛡️</Text>
           <Text style={styles.headerTitle}>檢舉 {displayName}</Text>
           <Text style={styles.headerSub}>
             請告訴我們發生了什麼事。你的檢舉會匿名處理，對方不會知道是誰檢舉的。
@@ -172,7 +171,7 @@ export default function ReportUser() {
 
         <View style={styles.blockSection}>
           <View style={styles.blockTextInfo}>
-            <Text style={styles.blockTitle}>🚫 同時封鎖此用戶</Text>
+            <Text style={styles.blockTitle}>同時封鎖此用戶</Text>
             <Text style={styles.blockSub}>
               封鎖後，你不會在市集看到他的商品，雙方也無法互相傳送訊息。
             </Text>

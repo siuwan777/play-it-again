@@ -20,6 +20,8 @@ import {
   type Conversation,
 } from '../utils/chat';
 import { useBlockedUserIds } from '../hooks/useBlockedUserIds';
+import { TabScreenHeader } from './TabScreenHeader';
+import { colors } from '../constants/theme';
 
 const DEFAULT_IMAGE =
   'https://images.unsplash.com/photo-1550291652-6ea9114a47b1?q=80&w=800&auto=format&fit=crop';
@@ -93,12 +95,13 @@ export default function ConversationList({ showHeader = false }: ConversationLis
 
   return (
     <View style={styles.container}>
-      {showHeader && (
-        <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>我的訊息</Text>
-          <Text style={styles.pageSub}>買家聯絡或你想買的商品，對話都會在這裡</Text>
-        </View>
-      )}
+      {showHeader ? (
+        <TabScreenHeader
+          variant="messages"
+          title="我的訊息"
+          subtitle="買家聯絡或你想買的商品，對話都會在這裡"
+        />
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {visibleConversations.length > 0 ? (
@@ -142,11 +145,7 @@ export default function ConversationList({ showHeader = false }: ConversationLis
                               : styles.badgeTextMuted,
                           ]}
                         >
-                          {badge === '待回覆'
-                            ? '🔥 待回覆'
-                            : badge === '待確認交收'
-                              ? '📍 待確認交收'
-                              : badge}
+                          {badge}
                         </Text>
                       </View>
                     ) : null}
@@ -164,7 +163,6 @@ export default function ConversationList({ showHeader = false }: ConversationLis
           })
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>💬</Text>
             <Text style={styles.emptyTitle}>暫無訊息</Text>
             <Text style={styles.emptySub}>
               買家：在商品頁按「聯絡賣家」開始對話{'\n'}
@@ -178,44 +176,36 @@ export default function ConversationList({ showHeader = false }: ConversationLis
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4EEDD' },
+  container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, flexGrow: 1 },
-  pageHeader: {
-    backgroundColor: '#4A3B32',
-    paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 18,
-  },
-  pageTitle: { fontSize: 24, fontWeight: '900', color: '#F4EEDD', marginBottom: 6 },
-  pageSub: { fontSize: 13, color: 'rgba(244, 238, 221, 0.75)', lineHeight: 20 },
   centered: {
     flex: 1,
-    backgroundColor: '#F4EEDD',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 30,
   },
-  loadingText: { marginTop: 12, fontSize: 16, color: '#8A7B72' },
+  loadingText: { marginTop: 12, fontSize: 16, color: colors.textMuted },
   loginBtn: {
     marginTop: 16,
-    backgroundColor: '#C35A2C',
+    backgroundColor: colors.tile,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 14,
   },
-  loginBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
+  loginBtnText: { color: colors.textOnTile, fontWeight: 'bold', fontSize: 16 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: colors.border,
   },
-  cardUnread: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-  image: { width: 56, height: 56, borderRadius: 12, marginRight: 12, backgroundColor: '#F3F4F6' },
+  cardUnread: { backgroundColor: colors.paper, borderColor: colors.text, borderWidth: 1.5 },
+  image: { width: 56, height: 56, borderRadius: 12, marginRight: 12, backgroundColor: colors.tile },
   info: { flex: 1 },
   titleRow: {
     flexDirection: 'row',
@@ -223,8 +213,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 2,
   },
-  otherName: { fontSize: 15, fontWeight: 'bold', color: '#111111', flex: 1 },
-  otherNameUnread: { color: '#92400E' },
+  otherName: { fontSize: 15, fontWeight: 'bold', color: colors.text, flex: 1 },
+  otherNameUnread: { color: colors.text },
   unreadDot: {
     width: 8,
     height: 8,
@@ -234,17 +224,17 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 },
-  badgeUrgent: { backgroundColor: '#FEF3C7' },
-  badgeMuted: { backgroundColor: '#ECFDF5' },
+  badgeUrgent: { backgroundColor: colors.mutedFill },
+  badgeMuted: { backgroundColor: colors.mutedFill },
   badgeText: { fontSize: 11, fontWeight: 'bold' },
-  badgeTextUrgent: { color: '#B45309' },
-  badgeTextMuted: { color: '#047857' },
-  listingTitle: { fontSize: 13, color: '#6B7280', marginBottom: 4 },
-  lastMessage: { fontSize: 13, color: '#9CA3AF' },
-  lastMessageUnread: { color: '#374151', fontWeight: '600' },
-  chevron: { fontSize: 24, color: '#D1D5DB', marginLeft: 8 },
+  badgeTextUrgent: { color: colors.textSecondary },
+  badgeTextMuted: { color: colors.textSecondary },
+  listingTitle: { fontSize: 13, color: colors.textSecondary, marginBottom: 4 },
+  lastMessage: { fontSize: 13, color: colors.textMuted },
+  lastMessageUnread: { color: colors.text, fontWeight: '600' },
+  chevron: { fontSize: 24, color: colors.textMuted, marginLeft: 8 },
   emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 24 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#4A3B32', marginBottom: 8 },
-  emptySub: { fontSize: 14, color: '#8A7B72', textAlign: 'center', lineHeight: 22 },
+  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, marginBottom: 8 },
+  emptySub: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
 });

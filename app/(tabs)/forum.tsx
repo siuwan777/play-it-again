@@ -103,13 +103,13 @@ export default function Forum() {
       [
         { text: '再想想', style: 'cancel' },
         {
-          text: '確認解鎖 🔓',
+          text: '確認解鎖',
           onPress: async () => {
             setUnlocking(true);
             try {
               await unlockForumAccess(userId);
               setIsForumUnlocked(true);
-              Alert.alert('🎉 解鎖成功', '歡迎來到樂手討論區！您的專屬社群已開啟。');
+              Alert.alert('解鎖成功', '歡迎來到樂手討論區！您的專屬社群已開啟。');
             } catch (error) {
               console.error('Failed to unlock forum:', error);
               Alert.alert('解鎖失敗', '無法解鎖討論區，請稍後再試。');
@@ -137,7 +137,7 @@ export default function Forum() {
     }
 
     if (isForumAdContent(newTitle, newContent)) {
-      Alert.alert('⚠️ 系統攔截', '討論區嚴禁發佈買賣廣告！\n如需交易，請將商品上架至【市集區】。', [
+      Alert.alert('系統攔截', '討論區嚴禁發佈買賣廣告！\n如需交易，請將商品上架至【市集區】。', [
         { text: '我知道了', style: 'cancel' },
       ]);
       return;
@@ -167,7 +167,7 @@ export default function Forum() {
     Alert.alert('舉報貼文', `您確定要舉報 ${postAuthor} 的這篇貼文嗎？`, [
       { text: '取消', style: 'cancel' },
       {
-        text: '⚠️ 這是違規廣告',
+        text: '這是違規廣告',
         style: 'destructive',
         onPress: () => Alert.alert('舉報成功', '系統管理員將會介入審查。'),
       },
@@ -186,7 +186,6 @@ export default function Forum() {
   if (!isForumUnlocked) {
     return (
       <View style={styles.lockedContainer}>
-        <Text style={styles.lockedIcon}>🎫</Text>
         <Text style={styles.lockedTitle}>解鎖專屬討論區</Text>
         <Text style={styles.lockedDesc}>
           這裡匯聚了全港最專業的樂手。發掘器材心得、尋找 Band 友，立即取得您的通行證！
@@ -203,7 +202,7 @@ export default function Forum() {
             onPress={handleUnlock}
             disabled={unlocking}
           >
-            <Text style={styles.unlockBtnText}>{unlocking ? '解鎖中...' : `🔓 花費 ${UNLOCK_COST} 分解鎖`}</Text>
+            <Text style={styles.unlockBtnText}>{unlocking ? '解鎖中...' : `花費 ${UNLOCK_COST} 分解鎖`}</Text>
           </TouchableOpacity>
         ) : (
           <View style={{ alignItems: 'center' }}>
@@ -211,7 +210,7 @@ export default function Forum() {
               <Text style={styles.unlockBtnText}>分數不足</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/profile')} style={{ marginTop: 15 }}>
-              <Text style={{ color: '#C35A2C', fontWeight: 'bold' }}>去賺取信用分 ➡️</Text>
+              <Text style={{ color: '#C35A2C', fontWeight: 'bold' }}>去賺取信用分</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -254,15 +253,14 @@ export default function Forum() {
                     {post.authorName} • {formatForumTime(post.createdAt)}
                   </Text>
                   <View style={styles.postActions}>
-                    <Text style={styles.actionText}>👍 {post.likeCount}</Text>
-                    <Text style={styles.actionText}>💬 {post.replyCount}</Text>
+                    <Text style={styles.actionText}>讚 {post.likeCount}</Text>
+                    <Text style={styles.actionText}>回覆 {post.replyCount}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🎸</Text>
               <Text style={styles.emptyTitle}>暫無貼文</Text>
               <Text style={styles.emptySub}>成為第一個分享心得的樂手吧！</Text>
             </View>
@@ -271,7 +269,7 @@ export default function Forum() {
       )}
 
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Text style={styles.fabText}>✏️</Text>
+        <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
       <Modal visible={isModalVisible} animationType="slide" transparent>

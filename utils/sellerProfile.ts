@@ -9,7 +9,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { isListingSold } from './listingStatus';
-import { resolveDisplayName, type UserProfile } from './userProfile';
+import { getProfileCompleteness } from './profileCompleteness';
+import { resolveDisplayName, userProfileToCompletenessInput, type UserProfile } from './userProfile';
 
 const DEFAULT_IMAGE =
   'https://images.unsplash.com/photo-1550291652-6ea9114a47b1?q=80&w=800&auto=format&fit=crop';
@@ -26,8 +27,12 @@ export type SellerPublicProfile = {
   displayName: string;
   bio: string;
   instagram: string;
+  region: string;
+  primaryInstrument: string;
+  musicLink: string;
   avatarUrl: string | null;
   joinDate: string;
+  completenessPercent: number;
 };
 
 function mapListingDoc(docSnap: QueryDocumentSnapshot): SellerListingItem {
@@ -79,18 +84,28 @@ export async function getSellerPublicProfile(
       displayName: fallbackName,
       bio: '',
       instagram: '',
+      region: '',
+      primaryInstrument: '',
+      musicLink: '',
       avatarUrl: null,
       joinDate: '近期加入',
+      completenessPercent: 0,
     };
   }
 
   const profile = snapshot.data() as UserProfile;
+  const completeness = getProfileCompleteness(userProfileToCompletenessInput(profile));
+
   return {
     displayName: resolveDisplayName(profile, profile.email),
     bio: profile.bio?.trim() || '',
     instagram: profile.instagram?.trim() || '',
+    region: profile.region?.trim() || '',
+    primaryInstrument: profile.primaryInstrument?.trim() || '',
+    musicLink: profile.musicLink?.trim() || '',
     avatarUrl: profile.avatarUrl || null,
     joinDate: formatJoinDate(profile.createdAt),
+    completenessPercent: completeness.percent,
   };
 }
 

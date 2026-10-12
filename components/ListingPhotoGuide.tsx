@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { useState } from 'react';
 import { ImageSourcePropType, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../constants/theme';
+import { CollapsibleFieldSection } from './CollapsibleFieldSection';
 
 type PhotoExample = {
   id: string;
@@ -37,10 +39,16 @@ const PHOTO_EXAMPLES: PhotoExample[] = [
 ];
 
 export function ListingPhotoGuide() {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>建議拍攝角度（Bass 示範）</Text>
-      <Text style={styles.subtitle}>參考以下 Bass 拍攝角度，上傳你自己的真實照片即可</Text>
+    <CollapsibleFieldSection
+      title="建議拍攝角度"
+      summary="點開查看示範"
+      expanded={expanded}
+      onToggle={() => setExpanded((prev) => !prev)}
+    >
+      <Text style={styles.subtitle}>參考以下樂器拍攝角度，上傳你自己的真實照片即可</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {PHOTO_EXAMPLES.map((example) => (
           <View key={example.id} style={styles.card}>
@@ -55,30 +63,21 @@ export function ListingPhotoGuide() {
           </View>
         ))}
       </ScrollView>
-    </View>
+    </CollapsibleFieldSection>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E0D8C8',
-    padding: 14,
-    marginBottom: 12,
-  },
-  title: { fontSize: 13, fontWeight: '800', color: '#4A3B32', marginBottom: 4 },
-  subtitle: { fontSize: 11, color: '#8A7B72', lineHeight: 16, marginBottom: 12 },
+  subtitle: { fontSize: 11, color: colors.textMuted, lineHeight: 16, marginBottom: 12 },
   scroll: { gap: 12, paddingBottom: 2 },
   card: { width: 96, alignItems: 'center' },
   preview: {
     width: 88,
     height: 96,
     borderRadius: 12,
-    backgroundColor: '#F4EEDD',
+    backgroundColor: colors.tile,
     borderWidth: 1,
-    borderColor: '#D8CEBC',
+    borderColor: colors.border,
     overflow: 'hidden',
     marginBottom: 6,
   },
@@ -87,12 +86,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     right: 4,
-    backgroundColor: 'rgba(74, 59, 50, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  demoBadgeText: { fontSize: 8, color: '#F4EEDD', fontWeight: '700' },
-  cardLabel: { fontSize: 12, fontWeight: '800', color: '#4A3B32' },
-  cardHint: { fontSize: 10, color: '#8A7B72', marginTop: 2, textAlign: 'center' },
+  demoBadgeText: { fontSize: 8, color: colors.onPrimary, fontWeight: '700' },
+  cardLabel: { fontSize: 12, fontWeight: '800', color: colors.text },
+  cardHint: { fontSize: 10, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
 });

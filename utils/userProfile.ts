@@ -12,15 +12,21 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import type { ProfileCompletenessInput } from './profileCompleteness';
 
 export type UserProfile = {
   email: string;
   displayName: string;
   bio?: string;
   instagram?: string;
+  region?: string;
+  primaryInstrument?: string;
+  musicLink?: string;
   avatarUrl?: string;
   creditScore?: number;
   forumUnlocked?: boolean;
+  expoPushTokens?: string[];
+  pushUpdatedAt?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -138,6 +144,20 @@ export function subscribeUserProfile(
     },
     (error) => onError?.(error)
   );
+}
+
+export function userProfileToCompletenessInput(
+  profile: UserProfile | null | undefined
+): ProfileCompletenessInput {
+  if (!profile) return {};
+  return {
+    avatarUrl: profile.avatarUrl ?? null,
+    bio: profile.bio,
+    instagram: profile.instagram,
+    region: profile.region,
+    primaryInstrument: profile.primaryInstrument,
+    musicLink: profile.musicLink,
+  };
 }
 
 export async function getDisplayNameForUser(uid: string, email?: string | null): Promise<string> {

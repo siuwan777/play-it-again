@@ -1,5 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { chipStyles } from '../constants/chipStyles';
+import { colors } from '../constants/theme';
 
 export type SelectOption = string | { value: string; label: string };
 
@@ -8,6 +10,7 @@ type OptionSelectFieldProps = {
   value: string;
   options: SelectOption[];
   required?: boolean;
+  hideLabel?: boolean;
   onChange: (value: string) => void;
 };
 
@@ -23,26 +26,29 @@ export function OptionSelectField({
   value,
   options,
   required,
+  hideLabel,
   onChange,
 }: OptionSelectFieldProps) {
   const normalizedOptions = options.map(normalizeOption);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>
-        {label}
-        {required ? <Text style={styles.required}> *</Text> : null}
-      </Text>
+    <View style={[styles.container, hideLabel && styles.containerCompact]}>
+      {hideLabel ? null : (
+        <Text style={styles.label}>
+          {label}
+          {required ? <Text style={styles.required}> *</Text> : null}
+        </Text>
+      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {normalizedOptions.map((option) => {
           const selected = value === option.value;
           return (
             <TouchableOpacity
               key={option.value}
-              style={[styles.chip, selected && styles.chipActive]}
+              style={[chipStyles.chip, selected && chipStyles.chipActive]}
               onPress={() => onChange(option.value)}
             >
-              <Text style={[styles.chipText, selected && styles.chipTextActive]}>{option.label}</Text>
+              <Text style={[chipStyles.chipText, selected && chipStyles.chipTextActive]}>{option.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -53,27 +59,8 @@ export function OptionSelectField({
 
 const styles = StyleSheet.create({
   container: { marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#4A3B32', marginBottom: 8 },
-  required: { color: '#C35A2C' },
+  containerCompact: { marginBottom: 0 },
+  label: { fontSize: 14, fontWeight: 'bold', color: colors.text, marginBottom: 8 },
+  required: { color: colors.text },
   scroll: { gap: 10, paddingBottom: 8 },
-  chip: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E0D8C8',
-  },
-  chipActive: {
-    backgroundColor: '#4A3B32',
-    borderColor: '#4A3B32',
-  },
-  chipText: {
-    fontSize: 14,
-    color: '#4A3B32',
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: '#F4EEDD',
-  },
 });

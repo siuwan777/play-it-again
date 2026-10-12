@@ -20,28 +20,7 @@ export const LISTING_CONDITIONS = [
   { id: 'non_functioning', label: '無法正常運作' },
 ];
 
-export const YEAR_OPTIONS = [
-  '2026',
-  '2025',
-  '2024',
-  '2023',
-  '2022',
-  '2021',
-  '2020',
-  '2019',
-  '2018',
-  '2017',
-  '2016',
-  '2015',
-  '2010-2014',
-  '2000-2009',
-  '1990-1999',
-  '1980-1989',
-  '1970-1979',
-  '1960-1969',
-  '更早',
-  '不確定',
-];
+export const YEAR_UNCERTAIN = '不確定';
 
 const OTHER = '其他';
 
@@ -59,7 +38,7 @@ export function fieldHasOtherOption(field: SpecField): boolean {
 
 export function fieldSupportsOther(field: SpecField): boolean {
   if (isTextInputField(field)) return false;
-  return field.key === 'model' || fieldHasOtherOption(field);
+  return fieldHasOtherOption(field);
 }
 
 export function isTextInputField(field: SpecField): boolean {
@@ -258,9 +237,8 @@ const BRAND_MODELS: Record<string, string[]> = {
 
 const DEFAULT_MODELS = ['Standard', 'Custom Shop', 'Signature', OTHER];
 
-const FINISH_OPTIONS = ['Sunburst', 'Black', 'White', 'Natural', 'Red', 'Blue', 'Green', 'Gold', OTHER];
 const HANDEDNESS_OPTIONS = ['右手', '左手'];
-const INCLUDES_OPTIONS = ['Hardcase', 'Gig Bag', '原裝盒', '火牛', '不附送'];
+const INCLUDES_OPTIONS = ['Hardcase', 'Gig Bag', '原裝盒', '火牛', '不附送', OTHER];
 
 const GUITAR_BODY_TYPES = ['Stratocaster', 'Telecaster', 'Les Paul', 'SG', 'Superstrat', 'Hollow Body', 'Semi-Hollow', OTHER];
 const GUITAR_PICKUPS = ['SSS', 'HSS', 'HH', 'HS', 'P90', 'FilterTron', OTHER];
@@ -313,10 +291,6 @@ const MIC_CONNECTIONS = ['XLR', 'USB', '3.5mm', '不適用', OTHER];
 const DJ_GEAR_TYPES = ['DJ Controller', 'Turntable 唱盤', 'CDJ / Media Player', 'Mixer 混音台', OTHER];
 const DJ_CHANNELS = ['2 通道', '4 通道', '不適用', OTHER];
 
-function modelField(): SpecField {
-  return { key: 'model', label: '型號', required: true, options: [] };
-}
-
 function modelTextField(placeholder = '例如：BigSky、Timeline、DS-1'): SpecField {
   return {
     key: 'model',
@@ -331,39 +305,52 @@ function brandField(brands: string[]): SpecField {
 }
 
 function yearField(): SpecField {
-  return { key: 'year', label: '年份', required: true, options: YEAR_OPTIONS };
+  return {
+    key: 'year',
+    label: '年份',
+    required: true,
+    placeholder: '例如：2022、2015',
+  };
+}
+
+function finishField(): SpecField {
+  return {
+    key: 'finish',
+    label: '顏色 / 漆面',
+    placeholder: '例如：Sunburst、黑色、Natural',
+  };
 }
 
 const CATEGORY_FIELDS: Record<string, SpecField[]> = {
   eguitar: [
     brandField(GUITAR_BRANDS),
-    modelField(),
+    modelTextField('例如：Stratocaster、Telecaster、Les Paul'),
     yearField(),
     { key: 'bodyType', label: '琴身類型', options: GUITAR_BODY_TYPES },
     { key: 'pickups', label: '拾音器配置', options: GUITAR_PICKUPS },
     { key: 'fretboard', label: '指板材質', options: FREBOARD_OPTIONS },
-    { key: 'finish', label: '顏色 / 漆面', options: FINISH_OPTIONS },
+    finishField(),
     { key: 'handedness', label: '左右手', options: HANDEDNESS_OPTIONS },
     { key: 'includes', label: '附送配件', options: INCLUDES_OPTIONS },
   ],
   aguitar: [
     brandField(ACOUSTIC_BRANDS),
-    modelField(),
+    modelTextField('例如：D-28、814ce、000-15'),
     yearField(),
     { key: 'bodyShape', label: '琴身形狀', options: ACOUSTIC_BODY_SHAPES },
     { key: 'topWood', label: '面板木材', options: ACOUSTIC_TOP_WOODS },
     { key: 'pickup', label: '拾音系統', options: ACOUSTIC_PICKUP },
-    { key: 'finish', label: '顏色 / 漆面', options: FINISH_OPTIONS },
+    finishField(),
     { key: 'includes', label: '附送配件', options: INCLUDES_OPTIONS },
   ],
   bass: [
     brandField(BASS_BRANDS),
-    modelField(),
+    modelTextField('例如：Jazz Bass、Precision、StingRay'),
     yearField(),
     { key: 'bodyType', label: '琴身類型', options: BASS_BODY_TYPES },
     { key: 'pickups', label: '拾音器配置', options: BASS_PICKUPS },
     { key: 'fretboard', label: '指板材質', options: FREBOARD_OPTIONS },
-    { key: 'finish', label: '顏色 / 漆面', options: FINISH_OPTIONS },
+    finishField(),
     { key: 'handedness', label: '左右手', options: HANDEDNESS_OPTIONS },
     { key: 'includes', label: '附送配件', options: INCLUDES_OPTIONS },
   ],
@@ -373,7 +360,7 @@ const CATEGORY_FIELDS: Record<string, SpecField[]> = {
     yearField(),
     { key: 'size', label: '尺寸', required: true, options: UKULELE_SIZES },
     { key: 'material', label: '木材', options: UKULELE_MATERIALS },
-    { key: 'finish', label: '顏色 / 漆面', options: FINISH_OPTIONS },
+    finishField(),
     { key: 'includes', label: '附送配件', options: INCLUDES_OPTIONS },
   ],
   keyboard: [
@@ -411,7 +398,7 @@ const CATEGORY_FIELDS: Record<string, SpecField[]> = {
   ],
   amps: [
     brandField(AMP_BRANDS),
-    modelField(),
+    modelTextField('例如：Deluxe Reverb、AC30、Katana'),
     yearField(),
     { key: 'ampType', label: 'Amp 類型', required: true, options: AMP_TYPES },
     { key: 'wattage', label: '功率', options: AMP_WATTAGE },
@@ -420,7 +407,7 @@ const CATEGORY_FIELDS: Record<string, SpecField[]> = {
   ],
   drums: [
     brandField(DRUM_BRANDS),
-    modelField(),
+    modelTextField('例如：Export、Breakbeats、Superstar'),
     yearField(),
     { key: 'drumType', label: '鼓件類型', required: true, options: DRUM_TYPES },
     { key: 'shellMaterial', label: '鼓腔材質', options: SHELL_MATERIALS },
@@ -461,12 +448,7 @@ const CATEGORY_FIELDS: Record<string, SpecField[]> = {
       required: true,
       placeholder: '例如：Special 20、SPD-SX',
     },
-    {
-      key: 'year',
-      label: '年份',
-      required: true,
-      placeholder: '例如：2022、2010-2014',
-    },
+    yearField(),
     {
       key: 'size',
       label: '尺寸',
@@ -581,7 +563,7 @@ export function validateListingForm(params: {
 
     if (field.required && !value) {
       if (isTextInputField(field)) return `請填寫${field.label}`;
-      return field.key === 'model' ? '請選擇型號' : `請選擇${field.label}`;
+      return `請選擇${field.label}`;
     }
 
     if (value === OTHER && fieldSupportsOther(field)) {
@@ -595,6 +577,31 @@ export function validateListingForm(params: {
   }
 
   return null;
+}
+
+export function areRequiredSpecsComplete(
+  categoryId?: string | null,
+  rawSpecs?: ListingSpecs | null
+): boolean {
+  if (!categoryId) return false;
+
+  const specs = normalizeSpecsFromFirestore(categoryId, rawSpecs);
+  let hasRequiredField = false;
+
+  for (const field of getSpecFields(categoryId)) {
+    if (!field.required) continue;
+    if (!field.options?.length && !isTextInputField(field)) continue;
+
+    hasRequiredField = true;
+    const value = specs[field.key]?.trim();
+    if (!value) return false;
+
+    if (value === OTHER && fieldSupportsOther(field)) {
+      if (!specs[getCustomFieldKey(field.key)]?.trim()) return false;
+    }
+  }
+
+  return hasRequiredField;
 }
 
 export function getSpecDisplayRows(categoryId: string, specs: ListingSpecs): { label: string; value: string }[] {

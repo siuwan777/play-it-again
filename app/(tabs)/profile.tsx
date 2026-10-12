@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFavorites } from '../FavoritesContext';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -10,6 +10,11 @@ import { getListingConversationsAsSeller } from '../../utils/chat';
 import { useInboxBadge } from '../../hooks/useInboxBadge';
 import { subscribeUserListings } from '../../utils/userListings';
 import { resolveDisplayName, setCachedDisplayName, subscribeUserProfile } from '../../utils/userProfile';
+import { formatJoinDate } from '../../utils/sellerProfile';
+import { getIdentityBadgeLabel, getProfileCompleteness } from '../../utils/profileCompleteness';
+import { ProfileCompleteness } from '../../components/ProfileCompleteness';
+import { TabScreenHeader } from '../../components/TabScreenHeader';
+import { colors, radii } from '../../constants/theme';
 
 export default function Profile() {
   const router = useRouter();
@@ -17,10 +22,7 @@ export default function Profile() {
   const { favorites, loading: favoritesLoading } = useFavorites();
 
   const USER = {
-    name: 'Jason_Guitarist',
-    role: '活躍樂手',
-    joinDate: '2026年1月',
-    verified: true,
+    name: '尚未登入',
   };
 
   const [activeListings, setActiveListings] = useState<any[]>([]);
@@ -29,7 +31,12 @@ export default function Profile() {
   const [userId, setUserId] = useState<string | null>(null);
   const [profileName, setProfileName] = useState(USER.name);
   const [profileBio, setProfileBio] = useState('');
+  const [profileInstagram, setProfileInstagram] = useState('');
+  const [profileRegion, setProfileRegion] = useState('');
+  const [profileInstrument, setProfileInstrument] = useState('');
+  const [profileMusicLink, setProfileMusicLink] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [joinDate, setJoinDate] = useState('');
   const [creditScore, setCreditScore] = useState(0);
   const { badgeCount: inboxBadgeCount } = useInboxBadge();
 
@@ -39,7 +46,12 @@ export default function Profile() {
       if (!user) {
         setProfileName(USER.name);
         setProfileBio('');
+        setProfileInstagram('');
+        setProfileRegion('');
+        setProfileInstrument('');
+        setProfileMusicLink('');
         setAvatarUrl(null);
+        setJoinDate('');
       }
     });
     return unsubscribeAuth;
@@ -52,7 +64,12 @@ export default function Profile() {
       const email = auth.currentUser?.email || null;
       setProfileName(resolveDisplayName(profile, email));
       setProfileBio(profile?.bio || '');
+      setProfileInstagram(profile?.instagram || '');
+      setProfileRegion(profile?.region || '');
+      setProfileInstrument(profile?.primaryInstrument || '');
+      setProfileMusicLink(profile?.musicLink || '');
       setAvatarUrl(profile?.avatarUrl || null);
+      setJoinDate(formatJoinDate(profile?.createdAt));
       setCreditScore(typeof profile?.creditScore === 'number' ? profile.creditScore : 0);
     });
 
@@ -104,11 +121,11 @@ export default function Profile() {
               style={[styles.editBtn, !isLegacy && styles.editBtnHalf]}
               onPress={() => router.push({ pathname: '/edit-listing', params: { id: item.id } })}
             >
-              <Text style={styles.editBtnText}>✏️ 編輯</Text>
+              <Text style={styles.editBtnText}>編輯</Text>
             </TouchableOpacity>
             {!isLegacy && (
               <TouchableOpacity style={styles.soldBtn} onPress={() => handleMarkAsSold(item)}>
-                <Text style={styles.soldBtnText}>✔️ 已售</Text>
+                <Text style={styles.soldBtnText}>已售</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -191,24 +208,64 @@ export default function Profile() {
     );
   };
 
+  const performLogout = async () => {
+    try {
+      clearAuthEmail();
+      setCachedDisplayName(null);
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+      const message = '無法登出，請稍後再試。';
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert('登出失敗', message);
+      }
+    }
+  };
+
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('確定要登出 Play it again 嗎？');
+      if (confirmed) {
+        void performLogout();
+      }
+      return;
+    }
+
     Alert.alert('登出', '確定要登出 Play it again 嗎？', [
       { text: '取消', style: 'cancel' },
       {
         text: '確定登出',
         style: 'destructive',
-        onPress: async () => {
-          clearAuthEmail();
-          setCachedDisplayName(null);
-          await signOut(auth);
-          router.replace('/login');
+        onPress: () => {
+          void performLogout();
         },
       },
     ]);
   };
 
+  const identityLabel = userId
+    ? getIdentityBadgeLabel(
+        getProfileCompleteness({
+          avatarUrl,
+          bio: profileBio,
+          instagram: profileInstagram,
+          region: profileRegion,
+          primaryInstrument: profileInstrument,
+          musicLink: profileMusicLink,
+        }).percent
+      )
+    : null;
+
+  const profileMeta = [profileInstrument, joinDate ? `加入 ${joinDate}` : null]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <TabScreenHeader variant="profile" title="個人檔案" subtitle="管理放售、收藏與交易紀錄" />
       <View style={styles.profileCard}>
         <View style={styles.headerRow}>
           {avatarUrl ? (
@@ -221,34 +278,57 @@ export default function Profile() {
           <View style={styles.userInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.name}>{profileName}</Text>
-              {USER.verified && <Text style={styles.verifiedIcon}>✔️</Text>}
+              {identityLabel ? (
+                <View style={styles.identityBadge}>
+                  <Text style={styles.identityBadgeText}>{identityLabel}</Text>
+                </View>
+              ) : null}
             </View>
             <Text style={styles.roleText}>
-              {profileBio ? profileBio : `加入時間: ${USER.joinDate} • ${USER.role}`}
+              {profileBio ? profileBio : profileMeta || (userId ? '完善檔案，商品會更容易被買家看到' : '登入後管理放售與收藏')}
             </Text>
           </View>
         </View>
 
+        {userId ? (
+          <ProfileCompleteness
+            variant="summary"
+            avatarUrl={avatarUrl}
+            bio={profileBio}
+            instagram={profileInstagram}
+            region={profileRegion}
+            primaryInstrument={profileInstrument}
+            musicLink={profileMusicLink}
+          />
+        ) : null}
+
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>信用分</Text>
-            <Text style={styles.statValue}>⭐ {creditScore}</Text>
+            <Text style={styles.statValue}>{creditScore}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>成功交易</Text>
-            <Text style={[styles.statValue, {color: '#F4EEDD'}]}>🤝 {historyListings.length}</Text>
+            <Text style={styles.statValue}>{historyListings.length}</Text>
           </View>
         </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.premiumBtn} onPress={() => router.push('/premium')}>
-            <Text style={styles.premiumBtnText}>👑 升級 PRO / 推廣</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.editProfileBtn}
+          onPress={() => {
+            if (!userId) {
+              router.push('/login');
+              return;
+            }
+            router.push('/edit-profile');
+          }}
+        >
+          <Text style={styles.editProfileBtnText}>編輯個人檔案</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.messagesBtn} onPress={() => router.push('/(tabs)/messages')}>
-          <Text style={styles.messagesBtnText}>💬 我的訊息</Text>
+          <Text style={styles.messagesBtnText}>我的訊息</Text>
           {inboxBadgeCount > 0 ? (
             <View style={styles.messagesBadge}>
               <Text style={styles.messagesBadgeText}>
@@ -259,15 +339,6 @@ export default function Profile() {
             <Text style={styles.messagesBtnHint}>查看買家聯絡</Text>
           )}
         </TouchableOpacity>
-
-        <View style={styles.secondaryActionRow}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/rewards')}>
-            <Text style={styles.actionBtnText}>🎁 獎賞</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/edit-profile')}>
-            <Text style={styles.actionBtnText}>編輯</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       <View style={styles.tabContainer}>
@@ -289,7 +360,6 @@ export default function Profile() {
           <View>
             {!userId ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🔐</Text>
                 <Text style={styles.emptyTitle}>請先登入</Text>
                 <Text style={styles.emptySub}>登入後才能查看你的放售商品</Text>
                 <TouchableOpacity style={styles.loginBtn} onPress={() => router.push('/login')}>
@@ -312,7 +382,6 @@ export default function Profile() {
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🎸</Text>
                 <Text style={styles.emptyTitle}>目前沒有放售中的樂器</Text>
                 <Text style={styles.emptySub}>去「放售」頁刊登你的第一件商品吧！</Text>
               </View>
@@ -333,13 +402,12 @@ export default function Profile() {
                   <View style={styles.listingInfo}>
                     <Text style={styles.listingTitle} numberOfLines={2}>{item.title}</Text>
                     <Text style={styles.listingPrice}>HK$ {item.price}</Text>
-                    <View style={styles.cyanBadge}><Text style={styles.cyanBadgeText}>❤️ 已收藏</Text></View>
+                    <View style={styles.cyanBadge}><Text style={styles.cyanBadgeText}>已收藏</Text></View>
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>❤️</Text>
                 <Text style={styles.emptyTitle}>暫無收藏</Text>
               </View>
             )}
@@ -356,7 +424,7 @@ export default function Profile() {
                     <Text style={styles.listingTitle} numberOfLines={2}>{item.title}</Text>
                     <Text style={[styles.listingPrice, { color: '#8A7B72' }]}>HK$ {item.price}</Text>
                     <View style={styles.cyanBadge}>
-                      <Text style={styles.cyanBadgeText}>✅ 已售出 ({item.soldDate})</Text>
+                      <Text style={styles.cyanBadgeText}>已售出 ({item.soldDate})</Text>
                     </View>
                     {item.soldToBuyerId ? (
                       <TouchableOpacity
@@ -370,14 +438,14 @@ export default function Profile() {
                           })
                         }
                       >
-                        <Text style={styles.rateHistoryBtnText}>⭐ 為買家評分</Text>
+                        <Text style={styles.rateHistoryBtnText}>為買家評分</Text>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
                         style={styles.rateHistoryBtnSecondary}
                         onPress={() => router.push('/(tabs)/messages')}
                       >
-                        <Text style={styles.rateHistoryBtnSecondaryText}>💬 到訊息找買家評分</Text>
+                        <Text style={styles.rateHistoryBtnSecondaryText}>到訊息找買家評分</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -385,7 +453,6 @@ export default function Profile() {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🤝</Text>
                 <Text style={styles.emptyTitle}>暫無交易紀錄</Text>
               </View>
             )}
@@ -402,103 +469,162 @@ export default function Profile() {
   );
 }
 
-// ... 你的 styles 完全不用動，直接保留！
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4EEDD' },
-  profileCard: { backgroundColor: '#4A3B32', padding: 20, paddingTop: 60, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  container: { flex: 1, backgroundColor: colors.background },
+  profileCard: {
+    backgroundColor: colors.paper,
+    marginHorizontal: 16,
+    marginTop: -8,
+    padding: 20,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  avatar: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F4EEDD', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
-  avatarImage: { width: 70, height: 70, borderRadius: 35, marginRight: 15, backgroundColor: '#F4EEDD' },
-  avatarText: { fontSize: 32, fontWeight: 'bold', color: '#4A3B32' },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 15,
+  },
+  avatarImage: { width: 70, height: 70, borderRadius: 35, marginRight: 15, backgroundColor: colors.background },
+  avatarText: { fontSize: 32, fontWeight: 'bold', color: colors.text },
   userInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  name: { fontSize: 22, fontWeight: '900', color: '#F4EEDD' },
-  verifiedIcon: { fontSize: 16, marginLeft: 6 },
-  roleText: { fontSize: 13, color: '#D0C8B8' },
-  statsRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: 15, marginBottom: 20 },
+  name: { fontSize: 22, fontWeight: '900', color: colors.text },
+  identityBadge: {
+    marginLeft: 8,
+    backgroundColor: colors.tile,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+  },
+  identityBadgeText: { fontSize: 10, fontWeight: '800', color: colors.textOnTile },
+  roleText: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  statsRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14, padding: 15, marginBottom: 20 },
   statBox: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  statLabel: { fontSize: 12, color: '#D0C8B8', marginBottom: 4 },
-  statValue: { fontSize: 18, fontWeight: 'bold', color: '#DCA744' }, 
-  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  secondaryActionRow: { flexDirection: 'row', gap: 10 },
-  premiumBtn: { flex: 1, backgroundColor: '#C35A2C', paddingVertical: 12, borderRadius: 25, alignItems: 'center' },
-  premiumBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
+  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  statLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  statValue: { fontSize: 18, fontWeight: 'bold', color: colors.text },
+  editProfileBtn: {
+    backgroundColor: colors.tile,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  editProfileBtnText: { color: colors.textOnTile, fontWeight: 'bold', fontSize: 15 },
   messagesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 25,
+    borderRadius: 14,
     marginBottom: 10,
   },
-  messagesBtnText: { color: '#4A3B32', fontWeight: 'bold', fontSize: 15 },
-  messagesBtnHint: { color: '#8A7B72', fontSize: 12, fontWeight: '600' },
+  messagesBtnText: { color: colors.text, fontWeight: 'bold', fontSize: 15 },
+  messagesBtnHint: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   messagesBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.mutedFill,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: colors.border,
   },
-  messagesBadgeText: { color: '#B45309', fontSize: 12, fontWeight: 'bold' },
-  actionBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', paddingVertical: 12, borderRadius: 25, alignItems: 'center' },
-  actionBtnText: { color: '#F4EEDD', fontWeight: 'bold', fontSize: 14 },
-  tabContainer: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E0D8C8' },
+  messagesBadgeText: { color: colors.textSecondary, fontSize: 12, fontWeight: 'bold' },
+  tabContainer: {
+    flexDirection: 'row',
+    marginTop: 12,
+    marginHorizontal: 16,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   tabButton: { flex: 1, paddingVertical: 15, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabButtonActive: { borderBottomColor: '#C35A2C' },
-  tabText: { fontSize: 14, color: '#8A7B72', fontWeight: '600' },
-  tabTextActive: { color: '#C35A2C' },
+  tabButtonActive: { borderBottomColor: colors.tile },
+  tabText: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
+  tabTextActive: { color: colors.text },
   contentArea: { padding: 15 },
-  listingCard: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12, marginBottom: 15, borderWidth: 1, borderColor: '#E0D8C8' },
-  listingImage: { width: 90, height: 90, borderRadius: 12, backgroundColor: '#F4EEDD', marginRight: 15 },
+  listingCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  listingImage: { width: 90, height: 90, borderRadius: 12, backgroundColor: colors.tile, marginRight: 15 },
   listingInfo: { flex: 1, justifyContent: 'space-between' },
-  listingTitle: { fontSize: 14, fontWeight: 'bold', color: '#4A3B32', lineHeight: 20 },
-  listingPrice: { fontSize: 16, fontWeight: '900', color: '#C35A2C', marginTop: 4 },
+  listingTitle: { fontSize: 14, fontWeight: 'bold', color: colors.text, lineHeight: 20 },
+  listingPrice: { fontSize: 16, fontWeight: '800', color: colors.text, marginTop: 4 },
   listingActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  editBtn: { flex: 1, backgroundColor: '#F4EEDD', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  editBtn: { flex: 1, backgroundColor: colors.mutedFill, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   editBtnHalf: { flex: 1 },
-  editBtnText: { fontSize: 12, fontWeight: 'bold', color: '#4A3B32' },
-  soldBtn: { flex: 1, backgroundColor: '#4A3B32', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  soldBtnText: { fontSize: 12, fontWeight: 'bold', color: '#FFFFFF' },
-  legacySection: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E0D8C8' },
-  legacySectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#4A3B32', marginBottom: 6 },
-  legacySectionSub: { fontSize: 13, color: '#8A7B72', marginBottom: 12, lineHeight: 18 },
-  legacyBadge: { alignSelf: 'flex-start', backgroundColor: '#FFF7ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginBottom: 6, borderWidth: 1, borderColor: '#FED7AA' },
-  legacyBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#C35A2C' },
-  cyanBadge: { marginTop: 10, backgroundColor: '#E8F2F2', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#D0E5E5' },
-  cyanBadgeText: { fontSize: 11, fontWeight: 'bold', color: '#4E878C' },
+  editBtnText: { fontSize: 12, fontWeight: 'bold', color: colors.text },
+  soldBtn: { flex: 1, backgroundColor: colors.tile, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  soldBtnText: { fontSize: 12, fontWeight: 'bold', color: colors.textOnTile },
+  legacySection: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  legacySectionTitle: { fontSize: 15, fontWeight: 'bold', color: colors.text, marginBottom: 6 },
+  legacySectionSub: { fontSize: 13, color: colors.textMuted, marginBottom: 12, lineHeight: 18 },
+  legacyBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.mutedFill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  legacyBadgeText: { fontSize: 10, fontWeight: 'bold', color: colors.textSecondary },
+  cyanBadge: {
+    marginTop: 10,
+    backgroundColor: colors.mutedFill,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cyanBadgeText: { fontSize: 11, fontWeight: 'bold', color: colors.textSecondary },
   rateHistoryBtn: {
     marginTop: 10,
-    backgroundColor: '#111111',
+    backgroundColor: colors.tile,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
-  rateHistoryBtnText: { fontSize: 12, fontWeight: 'bold', color: '#FFFFFF' },
+  rateHistoryBtnText: { fontSize: 12, fontWeight: 'bold', color: colors.textOnTile },
   rateHistoryBtnSecondary: {
     marginTop: 10,
-    backgroundColor: '#F4EEDD',
+    backgroundColor: colors.background,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#E0D8C8',
+    borderColor: colors.border,
   },
-  rateHistoryBtnSecondaryText: { fontSize: 12, fontWeight: 'bold', color: '#4A3B32' },
+  rateHistoryBtnSecondaryText: { fontSize: 12, fontWeight: 'bold', color: colors.text },
   emptyState: { alignItems: 'center', paddingVertical: 50 },
   emptyIcon: { fontSize: 40, marginBottom: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#4A3B32', marginBottom: 5 },
-  emptySub: { fontSize: 14, color: '#8A7B72', marginBottom: 16, textAlign: 'center' },
-  loginBtn: { backgroundColor: '#C35A2C', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 8 },
-  loginBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
+  emptyTitle: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginBottom: 5 },
+  emptySub: { fontSize: 14, color: colors.textMuted, marginBottom: 16, textAlign: 'center' },
+  loginBtn: { backgroundColor: colors.tile, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 8 },
+  loginBtnText: { color: colors.textOnTile, fontWeight: 'bold', fontSize: 15 },
   systemSection: { padding: 20, alignItems: 'center' },
-  logoutButton: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, backgroundColor: '#4A3B32' },
-  logoutText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
-  versionText: { marginTop: 15, fontSize: 12, color: '#8A7B72' }
+  logoutButton: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 14, backgroundColor: colors.tile },
+  logoutText: { color: colors.textOnTile, fontWeight: 'bold', fontSize: 14 },
+  versionText: { marginTop: 15, fontSize: 12, color: colors.textMuted },
 });

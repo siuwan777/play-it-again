@@ -65,6 +65,11 @@ async function uploadBlobViaRest(blob: Blob, objectPath: string): Promise<string
     if (response.status === 404) {
       throw new Error('Firebase Storage 尚未啟用。請到 Firebase Console → Storage → Get started 開啟。');
     }
+    if (response.status === 402) {
+      throw new Error(
+        'Firebase Storage 需要 Blaze 方案（按用量計費，小量測試通常仍在免費額度內）。請到 Firebase Console → 左下角 Upgrade → 開通 Blaze，並確認 Storage 已啟用及規則已發布。'
+      );
+    }
 
     throw new Error(`圖片上傳失敗 (錯誤碼 ${response.status})`);
   }

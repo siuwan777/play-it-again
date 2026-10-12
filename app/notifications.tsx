@@ -159,7 +159,6 @@ export default function Notifications() {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔔</Text>
             <Text style={styles.emptyTitle}>暫無通知</Text>
             <Text style={styles.emptySub}>當有人想購買你的商品，或交易有更新時，會在這裡顯示</Text>
           </View>

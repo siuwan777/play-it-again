@@ -1,23 +1,29 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons'; // 引入 Expo 內建的強大圖示庫
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import { colors } from '../../constants/theme';
+
+/** 設為 true 即可在底部 Tab 重新顯示討論區 */
+const SHOW_FORUM_TAB = false;
 
 export default function TabLayout() {
   return (
+    <>
+    <StatusBar style="dark" backgroundColor={colors.background} />
     <Tabs 
       screenOptions={{
-        tabBarActiveTintColor: '#D97706', // 點擊時變成 PawnGong 專屬的琥珀色
-        tabBarInactiveTintColor: '#9CA3AF', // 沒點擊時是低調的灰色
+        sceneContainerStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.paper,
           borderTopWidth: 1,
-          borderTopColor: '#F3F4F6',
+          borderTopColor: colors.border,
           paddingBottom: 5,
           paddingTop: 5,
-          height: 60, // 稍微加高一點點，按起來手感更好
-          elevation: 10, // 給 Android 一點陰影
-          shadowColor: '#000', // 給 iOS 一點陰影
-          shadowOpacity: 0.05,
-          shadowRadius: 10,
+          height: 60,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerShown: false, // 隱藏系統預設的頂部標題（因為我們自己在頁面裡有做更漂亮的 Header 了）
       }}
@@ -40,13 +46,14 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 第 3 顆按鈕：討論區 */}
-      <Tabs.Screen 
-        name="forum" 
-        options={{ 
+      {/* 討論區（SHOW_FORUM_TAB 為 false 時隱藏 Tab，路由仍保留） */}
+      <Tabs.Screen
+        name="forum"
+        options={{
           title: '討論區',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />
-        }} 
+          href: SHOW_FORUM_TAB ? undefined : null,
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
+        }}
       />
       
       {/* 第 4 顆按鈕：免費放售 (稍微放大一點點，強調主要功能) */}
@@ -67,5 +74,6 @@ export default function TabLayout() {
         }} 
       />
     </Tabs>
+    </>
   );
 }

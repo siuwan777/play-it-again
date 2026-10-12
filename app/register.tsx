@@ -49,7 +49,7 @@ export default function Register() {
         await updateUserProfile(credential.user.uid, { displayName: displayName.trim() });
       }
 
-      Alert.alert('🎉 註冊成功！', '歡迎加入 Play it again 樂手社群！', [
+      Alert.alert('註冊成功', '歡迎加入 Play it again 樂手社群！', [
         { text: '立即開始', onPress: () => router.replace('/(tabs)') }
       ]);
     } catch (error: any) {

@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { createBuyIntentNotification, createRateSellerNotification } from './notifications';
+import { notifyUserOfNewMessage } from './pushNotifications';
 import { isInteractionBlocked } from './userSafety';
 
 export type DealStatus = 'chatting' | 'buyer_interested' | 'sold';
@@ -172,12 +173,12 @@ export function getMeetupStatusLabel(
 
   const summary = formatMeetupSummary(conversation.meetup);
   if (conversation.meetup.status === 'confirmed') {
-    return `✅ 已確認交收：${summary}`;
+    return `已確認交收：${summary}`;
   }
   if (conversation.meetup.proposedBy === userId) {
     return `⏳ 待對方確認交收：${summary}`;
   }
-  return `📍 對方提議交收：${summary}`;
+  return `對方提議交收：${summary}`;
 }
 
 export function canProposeMeetup(conversation: Conversation, userId: string): boolean {
@@ -560,6 +561,13 @@ export async function sendMessage(conversationId: string, senderId: string, text
     updatedAt: serverTimestamp(),
     [`lastReadAt.${senderId}`]: serverTimestamp(),
   });
+
+  void notifyUserOfNewMessage({
+    recipientUserId: otherUserId,
+    senderId,
+    conversationId,
+    preview: trimmed,
+  }).catch((error) => console.warn('Failed to send message push:', error));
 }
 
 export async function getListingConversationsAsSeller(

@@ -11,6 +11,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import { notifyUserInAppEvent } from './pushNotifications';
 
 export type NotificationType = 'buy_intent' | 'message' | 'rate_seller' | 'forum' | 'system';
 
@@ -80,15 +81,15 @@ export function formatNotificationTime(value: unknown): string {
 export function getNotificationIcon(type: NotificationType): string {
   switch (type) {
     case 'buy_intent':
-      return '🔥';
+      return '購';
     case 'message':
-      return '💬';
+      return '訊';
     case 'rate_seller':
-      return '⭐';
+      return '評';
     case 'forum':
-      return '🎸';
+      return '壇';
     default:
-      return '🛡️';
+      return '通';
   }
 }
 
@@ -101,18 +102,28 @@ export async function createBuyIntentNotification(params: {
   listingPrice: string;
   conversationId: string;
 }): Promise<void> {
+  const title = `${params.buyerName} 想購買你的商品`;
+  const message = `「${params.listingTitle}」· HK$ ${params.listingPrice} · 快回覆對方吧！`;
+
   await addDoc(collection(db, 'notifications'), {
     userId: params.sellerId,
     actorId: params.buyerId,
     type: 'buy_intent',
-    title: `${params.buyerName} 想購買你的商品`,
-    message: `「${params.listingTitle}」· HK$ ${params.listingPrice} · 快回覆對方吧！`,
+    title,
+    message,
     listingId: params.listingId,
     listingTitle: params.listingTitle,
     conversationId: params.conversationId,
     isRead: false,
     createdAt: serverTimestamp(),
   });
+
+  void notifyUserInAppEvent({
+    recipientUserId: params.sellerId,
+    title,
+    body: message,
+    data: { type: 'buy_intent', conversationId: params.conversationId },
+  }).catch((error) => console.warn('Failed to send buy_intent push:', error));
 }
 
 export async function createRateSellerNotification(params: {
@@ -123,12 +134,15 @@ export async function createRateSellerNotification(params: {
   listingTitle: string;
   conversationId: string;
 }): Promise<void> {
+  const title = '請為你的交易留下評價！';
+  const message = `${params.sellerName} 已確認將「${params.listingTitle}」售出給你。快去為他打分吧！`;
+
   await addDoc(collection(db, 'notifications'), {
     userId: params.buyerId,
     actorId: params.sellerId,
     type: 'rate_seller',
-    title: '請為你的交易留下評價！',
-    message: `${params.sellerName} 已確認將「${params.listingTitle}」售出給你。快去為他打分吧！`,
+    title,
+    message,
     listingId: params.listingId,
     listingTitle: params.listingTitle,
     revieweeId: params.sellerId,
@@ -137,6 +151,13 @@ export async function createRateSellerNotification(params: {
     isRead: false,
     createdAt: serverTimestamp(),
   });
+
+  void notifyUserInAppEvent({
+    recipientUserId: params.buyerId,
+    title,
+    body: message,
+    data: { type: 'rate_seller', conversationId: params.conversationId },
+  }).catch((error) => console.warn('Failed to send rate_seller push:', error));
 }
 
 export function subscribeUserNotifications(
